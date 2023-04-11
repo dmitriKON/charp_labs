@@ -1,0 +1,91 @@
+﻿using _4lab_Kondratenko.Models;
+using _4lab_Kondratenko.Tools;
+using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows;
+
+namespace _4lab_Kondratenko.ViewModels
+{
+    internal class ViewModelForm : INotifyPropertyChanged
+    {
+        private Person person;
+        private RelayCommand<object> _proceedCommand;
+        private bool _isEnabled = true;
+        private Action usersView;
+
+        public DateTime DateOfBirth { get; set; } = DateTime.Today;
+        public string Name { get; set; }
+        public string Surname { get; set; }
+        public string Email { get; set; }
+
+        public bool IsEnabled
+        {
+            get { return _isEnabled; }
+            set
+            {
+                _isEnabled = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public RelayCommand<object> ProceedCommand
+        {
+            get { return _proceedCommand ??= new RelayCommand<object>(_ => Proceed(), CanExecute); }
+        }
+
+        public ViewModelForm(Action usersView)
+        {
+            this.usersView = usersView;
+        }
+
+        private bool CanExecute(object o)
+        {
+            return !string.IsNullOrWhiteSpace(Name) && !string.IsNullOrWhiteSpace(Surname) &&
+                   !string.IsNullOrWhiteSpace(Email);
+        }
+
+        internal async void Proceed()
+        {
+            IsEnabled = false;
+            try
+            {
+                await Task.Run(() =>
+                {
+                    Person p = new Person(Name, Surname, Email, DateOfBirth);
+                    if (string.IsNullOrEmpty(p.Name) || string.IsNullOrEmpty(p.Surname) ||
+                        string.IsNullOrEmpty(p.Email))
+                    {
+                        IsEnabled = true;
+                        return Task.CompletedTask;
+                    }
+
+                    if (p.IsBirthday)
+                    {
+                        MessageBox.Show("Happy birthday!💖");
+                    }
+
+                    return Serializer.AddPerson(p);
+                });
+                usersView.Invoke();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                IsEnabled = true;
+            }
+        }
+
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void NotifyPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}
